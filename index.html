@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Porel API Test</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #0f0f1a; color: #e5e7eb; min-height: 100vh;
+    }
+    .container { max-width: 800px; margin: 0 auto; padding: 32px 20px; }
+    h1 { font-size: 24px; font-weight: 700; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
+    h1 small { font-size: 13px; font-weight: 400; color: #9ca3af; }
+    .subtitle { color: #9ca3af; font-size: 14px; margin: 0 0 24px; }
+    .card {
+      background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 12px; padding: 24px; margin-bottom: 16px;
+    }
+    .card h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
+    .status-badge {
+      display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    }
+    .badge-ok { background: #065f46; color: #6ee7b7; }
+    .badge-err { background: #7f1d1d; color: #fca5a5; }
+    .badge-warn { background: #78350f; color: #fcd34d; }
+    select, textarea, button {
+      font-family: inherit; font-size: 14px;
+    }
+    select, textarea {
+      width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #2a2a3e;
+      background: #0f0f1a; color: #e5e7eb; margin-bottom: 12px;
+    }
+    textarea { resize: vertical; min-height: 120px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; }
+    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+    .btn {
+      padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600;
+      background: #6366f1; color: #fff; transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+    .btn-secondary { background: #2a2a3e; color: #e5e7eb; }
+    .btn-danger { background: #dc2626; }
+    .result-box {
+      background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.6;
+      white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow: auto;
+    }
+    .result-box .meta { color: #6b7280; font-size: 11px; }
+    .result-box .key { color: #818cf8; }
+    .result-box .string { color: #6ee7b7; }
+    .result-box .number { color: #fcd34d; }
+    .result-box .null { color: #6b7280; }
+    .loading-dots::after { content: ''; animation: dots 1.5s steps(4, end) infinite; }
+    @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
+    .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+    .stat {
+      background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 120px;
+    }
+    .stat-label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; }
+    .stat-value { font-size: 20px; font-weight: 700; margin-top: 2px; }
+    .preset-msg {
+      padding: 6px 12px; border-radius: 6px; border: 1px solid #2a2a3e; cursor: pointer;
+      font-size: 12px; color: #9ca3af; transition: all .15s; display: inline-block; margin: 2px;
+    }
+    .preset-msg:hover { border-color: #6366f1; color: #e5e7eb; }
+    .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #2a2a3e; padding-bottom: 0; }
+    .tab {
+      padding: 8px 16px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 13px; font-weight: 500;
+      color: #6b7280; border-bottom: 2px solid transparent; transition: all .15s;
+    }
+    .tab:hover { color: #e5e7eb; }
+    .tab.active { color: #6366f1; border-bottom-color: #6366f1; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+    .curl-box {
+      background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.8;
+      white-space: pre-wrap; word-break: break-all;
+    }
+    .copy-btn {
+      float: right; padding: 4px 10px; border-radius: 4px; border: 1px solid #2a2a3e;
+      background: transparent; color: #6b7280; cursor: pointer; font-size: 11px;
+    }
+    .copy-btn:hover { background: #2a2a3e; color: #e5e7eb; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>
+      Porel API Test
+      <small>experimental playground</small>
+    </h1>
+    <p class="subtitle">Test your Porel Center API key against /v1/models and /v1/chat/completions</p>
+
+    <div class="stats" id="stats">
+      <div class="stat"><div class="stat-label">API Key</div><div class="stat-value" id="key-status">---</div></div>
+      <div class="stat"><div class="stat-label">Models</div><div class="stat-value" id="model-count">---</div></div>
+      <div class="stat"><div class="stat-label">Porel Center</div><div class="stat-value" id="center-status">---</div></div>
+    </div>
+
+    <!-- Tabs -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('playground', this)">Playground</div>
+      <div class="tab" onclick="switchTab('models', this)">Models</div>
+      <div class="tab" onclick="switchTab('curl', this)">cURL</div>
+    </div>
+
+    <!-- Playground Tab -->
+    <div id="tab-playground" class="tab-content active">
+      <div class="card">
+        <h2>Chat Completions</h2>
+        <div class="row" style="margin-bottom:12px;">
+          <select id="model-select" style="flex:1;margin-bottom:0;">
+            <option value="">Loading models...</option>
+          </select>
+          <button class="btn btn-secondary" onclick="refreshModels()" style="white-space:nowrap;">↻</button>
+        </div>
+        <textarea id="messages-input" placeholder='[
+  { "role": "system", "content": "You are a helpful assistant." },
+  { "role": "user", "content": "Say hello in 5 words." }
+]'></textarea>
+        <div style="margin-bottom:12px;">
+          <span class="preset-msg" onclick="setPreset('hello')">👋 Hello</span>
+          <span class="preset-msg" onclick="setPreset('haiku')">📝 Haiku</span>
+          <span class="preset-msg" onclick="setPreset('code')">💻 Code</span>
+          <span class="preset-msg" onclick="setPreset('joke')">😂 Joke</span>
+        </div>
+        <div class="row">
+          <button class="btn" id="send-btn" onclick="sendCompletion()">Send Request</button>
+          <label style="font-size:13px;color:#9ca3af;">
+            Max tokens:
+            <input type="number" id="max-tokens" value="200" style="width:70px;padding:4px 8px;border-radius:4px;border:1px solid #2a2a3e;background:#0f0f1a;color:#e5e7eb;font-size:13px;" />
+          </label>
+          <label style="font-size:13px;color:#9ca3af;">
+            Temp:
+            <input type="number" id="temperature" value="0.7" step="0.1" min="0" max="2" style="width:60px;padding:4px 8px;border-radius:4px;border:1px solid #2a2a3e;background:#0f0f1a;color:#e5e7eb;font-size:13px;" />
+          </label>
+        </div>
+      </div>
+
+      <div class="card" id="result-card" style="display:none;">
+        <h2>Response</h2>
+        <div class="result-box" id="result-box"></div>
+      </div>
+    </div>
+
+    <!-- Models Tab -->
+    <div id="tab-models" class="tab-content">
+      <div class="card">
+        <h2>Available Models</h2>
+        <div id="models-list" style="font-size:13px;color:#9ca3af;">Click refresh to load models.</div>
+      </div>
+    </div>
+
+    <!-- cURL Tab -->
+    <div id="tab-curl" class="tab-content">
+      <div class="card">
+        <h2>cURL Examples</h2>
+        <p style="font-size:13px;color:#9ca3af;margin:0 0 12px;">Copy-paste these into your terminal.</p>
+
+        <div style="margin-bottom:12px;">
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">List models</div>
+          <div style="position:relative;">
+            <div class="curl-box" id="curl-models">Loading...</div>
+          </div>
+        </div>
+
+        <div>
+          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Chat completion</div>
+          <div style="position:relative;">
+            <div class="curl-box" id="curl-completion">Loading...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const PRESETS = {
+      hello: [{ role: 'user', content: 'Say hello in 5 words.' }],
+      haiku: [{ role: 'user', content: 'Write a haiku about artificial intelligence.' }],
+      code: [{ role: 'user', content: 'Write a JavaScript function that checks if a string is a palindrome.' }],
+      joke: [{ role: 'user', content: 'Tell me a programming joke.' }],
+    };
+
+    let config = {};
+
+    async function init() {
+      try {
+        const resp = await fetch('/config');
+        config = await resp.json();
+        document.getElementById('key-status').textContent = config.hasKey ? '✓ Ready' : '✗ Missing';
+        document.getElementById('key-status').style.color = config.hasKey ? '#6ee7b7' : '#fca5a5';
+        document.getElementById('center-status').textContent = config.apiBase;
+        if (config.hasKey) await refreshModels();
+      } catch (e) {
+        document.getElementById('key-status').textContent = '✗ Server error';
+      }
+    }
+
+    async function refreshModels() {
+      const select = document.getElementById('model-select');
+      const list = document.getElementById('models-list');
+      select.innerHTML = '<option>Loading...</option>';
+      list.innerHTML = '<span style="color:#fcd34d;">Loading models...</span>';
+      try {
+        const resp = await fetch('/proxy/models');
+        const data = await resp.json();
+        const models = data.data || [];
+        document.getElementById('model-count').textContent = models.length;
+        document.getElementById('model-count').style.color = '#6ee7b7';
+
+        if (!models.length) {
+          select.innerHTML = '<option value="">No models returned</option>';
+          list.innerHTML = '<span style="color:#fca5a5;">No models returned from API.</span>';
+          return;
+        }
+
+        select.innerHTML = models.map(m => `<option value="${m.id}">${m.id}</option>`).join('');
+        list.innerHTML = models.map(m =>
+          `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2a2a3e;">
+            <span>${m.id}</span>
+            <span style="color:#6b7280;font-size:12px;">${m.group || ''}</span>
+          </div>`
+        ).join('');
+
+        updateCurlCommands(models[0]?.id);
+      } catch (e) {
+        select.innerHTML = '<option value="">Failed to load</option>';
+        list.innerHTML = `<span style="color:#fca5a5;">Error: ${e.message}</span>`;
+      }
+    }
+
+    function updateCurlCommands(modelId) {
+      const base = config.apiBase || 'http://localhost:3000/v1';
+      const key = 'prl_your_api_key_here';
+      document.getElementById('curl-models').textContent =
+        `curl ${base}/models \\\n  -H "Authorization: Bearer ${key}"`;
+      document.getElementById('curl-completion').textContent =
+        `curl -X POST ${base}/chat/completions \\\n  -H "Authorization: Bearer ${key}" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "${modelId || 'Porel Llama 4 Scout'}",\n    "messages": [{"role": "user", "content": "Hello!"}]\n  }'`;
+    }
+
+    function setPreset(name) {
+      const msgs = PRESETS[name];
+      if (msgs) document.getElementById('messages-input').value = JSON.stringify(msgs, null, 2);
+    }
+
+    async function sendCompletion() {
+      const btn = document.getElementById('send-btn');
+      const resultCard = document.getElementById('result-card');
+      const resultBox = document.getElementById('result-box');
+
+      const model = document.getElementById('model-select').value;
+      let messages;
+      try {
+        messages = JSON.parse(document.getElementById('messages-input').value);
+      } catch (e) {
+        resultCard.style.display = 'block';
+        resultBox.innerHTML = '<span style="color:#fca5a5;">✗ Invalid JSON in messages field</span>';
+        return;
+      }
+      const max_tokens = parseInt(document.getElementById('max-tokens').value) || 200;
+      const temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
+
+      if (!model) { resultCard.style.display = 'block'; resultBox.innerHTML = '<span style="color:#fca5a5;">✗ Select a model first</span>'; return; }
+
+      btn.disabled = true;
+      btn.textContent = 'Sending...';
+      resultCard.style.display = 'block';
+      resultBox.innerHTML = '<span style="color:#fcd34d;">⏳ Waiting for response...</span>';
+
+      const start = performance.now();
+      try {
+        const resp = await fetch('/proxy/chat/completions', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model, messages, max_tokens, temperature }),
+        });
+        const elapsed = ((performance.now() - start) / 1000).toFixed(2);
+        const data = await resp.json();
+
+        if (data.error) {
+          resultBox.innerHTML =
+            `<div class="meta">${resp.status} · ${elapsed}s</div>\n` +
+            `<span style="color:#fca5a5;">✗ ${data.error.message || JSON.stringify(data.error)}</span>`;
+          return;
+        }
+
+        const content = data.choices?.[0]?.message?.content || '(empty response)';
+        const usage = data.usage || {};
+        resultBox.innerHTML =
+          `<div class="meta">${resp.status} · ${elapsed}s · ` +
+          `prompt: ${usage.prompt_tokens} · completion: ${usage.completion_tokens} · total: ${usage.total_tokens}` +
+          `</div>\n` +
+          `<div style="margin-top:8px;">${escapeHtml(content)}</div>\n` +
+          `<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:11px;color:#6b7280;">Raw response</summary>` +
+          `<pre style="margin:8px 0 0;font-size:11px;">${escapeHtml(JSON.stringify(data, null, 2))}</pre></details>`;
+      } catch (e) {
+        resultBox.innerHTML = `<span style="color:#fca5a5;">✗ ${e.message}</span>`;
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Send Request';
+      }
+    }
+
+    function switchTab(name, el) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+      el.classList.add('active');
+      document.getElementById(`tab-${name}`).classList.add('active');
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement('div');
+      div.textContent = str;
+      return div.innerHTML;
+    }
+
+    init();
+  </script>
+</body>
+</html>
