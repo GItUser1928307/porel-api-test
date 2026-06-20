@@ -3,318 +3,329 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Porel API Test</title>
+  <title>Porel AI Chatbot</title>
   <style>
-    * { box-sizing: border-box; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      background: #0f0f1a; color: #e5e7eb; min-height: 100vh;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: #0f0f1a; color: #e5e7eb; height: 100vh; display: flex; flex-direction: column;
     }
-    .container { max-width: 800px; margin: 0 auto; padding: 32px 20px; }
-    h1 { font-size: 24px; font-weight: 700; margin: 0 0 4px; display: flex; align-items: center; gap: 10px; }
-    h1 small { font-size: 13px; font-weight: 400; color: #9ca3af; }
-    .subtitle { color: #9ca3af; font-size: 14px; margin: 0 0 24px; }
-    .card {
-      background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 12px; padding: 24px; margin-bottom: 16px;
+
+    /* Header */
+    .header {
+      padding: 12px 20px; border-bottom: 1px solid #1e1e32;
+      display: flex; align-items: center; gap: 12px; background: #12121f;
     }
-    .card h2 { margin: 0 0 12px; font-size: 16px; font-weight: 600; }
-    .status-badge {
-      display: inline-block; padding: 3px 10px; border-radius: 6px; font-size: 12px; font-weight: 600;
+    .header h1 { font-size: 16px; font-weight: 700; }
+    .header h1 span { color: #818cf8; }
+    .model-select {
+      padding: 6px 12px; border-radius: 8px; border: 1px solid #2a2a3e;
+      background: #1a1a2e; color: #e5e7eb; font-size: 13px; outline: none;
     }
-    .badge-ok { background: #065f46; color: #6ee7b7; }
-    .badge-err { background: #7f1d1d; color: #fca5a5; }
-    .badge-warn { background: #78350f; color: #fcd34d; }
-    select, textarea, button {
-      font-family: inherit; font-size: 14px;
+    .model-select:focus { border-color: #6366f1; }
+    .status-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: #6b7280;
     }
-    select, textarea {
-      width: 100%; padding: 10px 12px; border-radius: 8px; border: 1px solid #2a2a3e;
-      background: #0f0f1a; color: #e5e7eb; margin-bottom: 12px;
+    .status-dot.connected { background: #34d399; }
+    .status-dot.error { background: #f87171; }
+    .header-right { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+    .clear-btn {
+      padding: 6px 12px; border-radius: 8px; border: 1px solid #2a2a3e;
+      background: transparent; color: #9ca3af; font-size: 12px; cursor: pointer;
     }
-    textarea { resize: vertical; min-height: 120px; font-family: 'SF Mono', 'Fira Code', monospace; font-size: 13px; }
-    .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-    .btn {
-      padding: 10px 20px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600;
-      background: #6366f1; color: #fff; transition: opacity .15s;
+    .clear-btn:hover { border-color: #6366f1; color: #e5e7eb; }
+
+    /* Messages */
+    .messages {
+      flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 16px;
     }
-    .btn:hover { opacity: .85; }
-    .btn:disabled { opacity: .4; cursor: not-allowed; }
-    .btn-secondary { background: #2a2a3e; color: #e5e7eb; }
-    .btn-danger { background: #dc2626; }
-    .result-box {
-      background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 16px;
-      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.6;
-      white-space: pre-wrap; word-break: break-all; max-height: 400px; overflow: auto;
+    .messages::-webkit-scrollbar { width: 6px; }
+    .messages::-webkit-scrollbar-thumb { background: #2a2a3e; border-radius: 3px; }
+    .message {
+      max-width: 75%; padding: 12px 16px; border-radius: 12px;
+      font-size: 14px; line-height: 1.6; white-space: pre-wrap; word-break: break-word;
+      animation: fadeIn 0.15s ease;
     }
-    .result-box .meta { color: #6b7280; font-size: 11px; }
-    .result-box .key { color: #818cf8; }
-    .result-box .string { color: #6ee7b7; }
-    .result-box .number { color: #fcd34d; }
-    .result-box .null { color: #6b7280; }
-    .loading-dots::after { content: ''; animation: dots 1.5s steps(4, end) infinite; }
-    @keyframes dots { 0% { content: ''; } 25% { content: '.'; } 50% { content: '..'; } 75% { content: '...'; } }
-    .stats { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
-    .stat {
-      background: #1a1a2e; border: 1px solid #2a2a3e; border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 120px;
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .message.user {
+      align-self: flex-end; background: #6366f1; color: #fff;
+      border-bottom-right-radius: 4px;
     }
-    .stat-label { font-size: 11px; color: #6b7280; text-transform: uppercase; letter-spacing: .05em; }
-    .stat-value { font-size: 20px; font-weight: 700; margin-top: 2px; }
-    .preset-msg {
-      padding: 6px 12px; border-radius: 6px; border: 1px solid #2a2a3e; cursor: pointer;
-      font-size: 12px; color: #9ca3af; transition: all .15s; display: inline-block; margin: 2px;
+    .message.assistant {
+      align-self: flex-start; background: #1a1a2e; border: 1px solid #2a2a3e;
+      border-bottom-left-radius: 4px;
     }
-    .preset-msg:hover { border-color: #6366f1; color: #e5e7eb; }
-    .tabs { display: flex; gap: 4px; margin-bottom: 16px; border-bottom: 1px solid #2a2a3e; padding-bottom: 0; }
-    .tab {
-      padding: 8px 16px; border-radius: 8px 8px 0 0; cursor: pointer; font-size: 13px; font-weight: 500;
-      color: #6b7280; border-bottom: 2px solid transparent; transition: all .15s;
+    .message.error {
+      align-self: flex-start; background: #2d1215; border: 1px solid #5c2025;
+      color: #fca5a5; border-bottom-left-radius: 4px;
     }
-    .tab:hover { color: #e5e7eb; }
-    .tab.active { color: #6366f1; border-bottom-color: #6366f1; }
-    .tab-content { display: none; }
-    .tab-content.active { display: block; }
-    .curl-box {
-      background: #0f0f1a; border: 1px solid #2a2a3e; border-radius: 8px; padding: 16px;
-      font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; line-height: 1.8;
-      white-space: pre-wrap; word-break: break-all;
+    .message.system {
+      align-self: center; background: transparent; color: #6b7280;
+      font-size: 12px; padding: 4px 12px; border: 1px dashed #2a2a3e;
     }
-    .copy-btn {
-      float: right; padding: 4px 10px; border-radius: 4px; border: 1px solid #2a2a3e;
-      background: transparent; color: #6b7280; cursor: pointer; font-size: 11px;
+    .message-meta {
+      font-size: 11px; color: #6b7280; margin-top: 6px; display: flex; gap: 8px;
     }
-    .copy-btn:hover { background: #2a2a3e; color: #e5e7eb; }
+    .typing-dot { animation: blink 1.4s infinite; }
+    .typing-dot:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dot:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes blink { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; } }
+
+    /* Input */
+    .input-area {
+      padding: 16px 20px; border-top: 1px solid #1e1e32; background: #12121f;
+      display: flex; gap: 10px; align-items: flex-end;
+    }
+    .input-wrap {
+      flex: 1; position: relative;
+    }
+    .input-wrap textarea {
+      width: 100%; padding: 12px 16px; border-radius: 12px; border: 1px solid #2a2a3e;
+      background: #1a1a2e; color: #e5e7eb; font-size: 14px; font-family: inherit;
+      resize: none; outline: none; min-height: 44px; max-height: 160px;
+      line-height: 1.5; padding-right: 40px;
+    }
+    .input-wrap textarea:focus { border-color: #6366f1; }
+    .input-wrap textarea::placeholder { color: #4b5563; }
+    .send-btn {
+      position: absolute; right: 8px; bottom: 8px;
+      width: 32px; height: 32px; border-radius: 8px; border: none;
+      background: #6366f1; color: #fff; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: opacity 0.15s;
+    }
+    .send-btn:hover { opacity: 0.85; }
+    .send-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+    .send-btn svg { width: 16px; height: 16px; }
+    .welcome {
+      text-align: center; padding: 60px 20px; color: #6b7280;
+    }
+    .welcome h2 { font-size: 20px; color: #9ca3af; margin-bottom: 8px; }
+    .welcome p { font-size: 14px; }
+    .welcome .hint {
+      margin-top: 16px; font-size: 12px; color: #4b5563;
+    }
   </style>
 </head>
 <body>
-  <div class="container">
-    <h1>
-      Porel API Test
-      <small>experimental playground</small>
-    </h1>
-    <p class="subtitle">Test your Porel Center API key against /v1/models and /v1/chat/completions</p>
-
-    <div class="stats" id="stats">
-      <div class="stat"><div class="stat-label">API Key</div><div class="stat-value" id="key-status">---</div></div>
-      <div class="stat"><div class="stat-label">Models</div><div class="stat-value" id="model-count">---</div></div>
-      <div class="stat"><div class="stat-label">Porel Center</div><div class="stat-value" id="center-status">---</div></div>
+  <div class="header">
+    <div class="status-dot" id="status-dot"></div>
+    <h1><span>Porel</span> AI</h1>
+    <select class="model-select" id="model-select">
+      <option value="">Loading models...</option>
+    </select>
+    <div class="header-right">
+      <button class="clear-btn" onclick="clearChat()">Clear</button>
     </div>
+  </div>
 
-    <!-- Tabs -->
-    <div class="tabs">
-      <div class="tab active" onclick="switchTab('playground', this)">Playground</div>
-      <div class="tab" onclick="switchTab('models', this)">Models</div>
-      <div class="tab" onclick="switchTab('curl', this)">cURL</div>
+  <div class="messages" id="messages">
+    <div class="welcome" id="welcome">
+      <h2>How can I help you?</h2>
+      <p>Start a conversation below.</p>
+      <div class="hint" id="model-hint"></div>
     </div>
+  </div>
 
-    <!-- Playground Tab -->
-    <div id="tab-playground" class="tab-content active">
-      <div class="card">
-        <h2>Chat Completions</h2>
-        <div class="row" style="margin-bottom:12px;">
-          <select id="model-select" style="flex:1;margin-bottom:0;">
-            <option value="">Loading models...</option>
-          </select>
-          <button class="btn btn-secondary" onclick="refreshModels()" style="white-space:nowrap;">↻</button>
-        </div>
-        <textarea id="messages-input" placeholder='[
-  { "role": "system", "content": "You are a helpful assistant." },
-  { "role": "user", "content": "Say hello in 5 words." }
-]'></textarea>
-        <div style="margin-bottom:12px;">
-          <span class="preset-msg" onclick="setPreset('hello')">👋 Hello</span>
-          <span class="preset-msg" onclick="setPreset('haiku')">📝 Haiku</span>
-          <span class="preset-msg" onclick="setPreset('code')">💻 Code</span>
-          <span class="preset-msg" onclick="setPreset('joke')">😂 Joke</span>
-        </div>
-        <div class="row">
-          <button class="btn" id="send-btn" onclick="sendCompletion()">Send Request</button>
-          <label style="font-size:13px;color:#9ca3af;">
-            Max tokens:
-            <input type="number" id="max-tokens" value="200" style="width:70px;padding:4px 8px;border-radius:4px;border:1px solid #2a2a3e;background:#0f0f1a;color:#e5e7eb;font-size:13px;" />
-          </label>
-          <label style="font-size:13px;color:#9ca3af;">
-            Temp:
-            <input type="number" id="temperature" value="0.7" step="0.1" min="0" max="2" style="width:60px;padding:4px 8px;border-radius:4px;border:1px solid #2a2a3e;background:#0f0f1a;color:#e5e7eb;font-size:13px;" />
-          </label>
-        </div>
-      </div>
-
-      <div class="card" id="result-card" style="display:none;">
-        <h2>Response</h2>
-        <div class="result-box" id="result-box"></div>
-      </div>
-    </div>
-
-    <!-- Models Tab -->
-    <div id="tab-models" class="tab-content">
-      <div class="card">
-        <h2>Available Models</h2>
-        <div id="models-list" style="font-size:13px;color:#9ca3af;">Click refresh to load models.</div>
-      </div>
-    </div>
-
-    <!-- cURL Tab -->
-    <div id="tab-curl" class="tab-content">
-      <div class="card">
-        <h2>cURL Examples</h2>
-        <p style="font-size:13px;color:#9ca3af;margin:0 0 12px;">Copy-paste these into your terminal.</p>
-
-        <div style="margin-bottom:12px;">
-          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">List models</div>
-          <div style="position:relative;">
-            <div class="curl-box" id="curl-models">Loading...</div>
-          </div>
-        </div>
-
-        <div>
-          <div style="font-size:12px;font-weight:600;margin-bottom:4px;">Chat completion</div>
-          <div style="position:relative;">
-            <div class="curl-box" id="curl-completion">Loading...</div>
-          </div>
-        </div>
-      </div>
+  <div class="input-area">
+    <div class="input-wrap">
+      <textarea id="input" placeholder="Type a message..." rows="1"
+        onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+      <button class="send-btn" id="send-btn" onclick="send()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" />
+        </svg>
+      </button>
     </div>
   </div>
 
   <script>
-    const PRESETS = {
-      hello: [{ role: 'user', content: 'Say hello in 5 words.' }],
-      haiku: [{ role: 'user', content: 'Write a haiku about artificial intelligence.' }],
-      code: [{ role: 'user', content: 'Write a JavaScript function that checks if a string is a palindrome.' }],
-      joke: [{ role: 'user', content: 'Tell me a programming joke.' }],
-    };
-
-    let config = {};
+    let chatHistory = [];
+    let streaming = false;
+    let abortCtrl = null;
 
     async function init() {
       try {
-        const resp = await fetch('/config');
-        config = await resp.json();
-        document.getElementById('key-status').textContent = config.hasKey ? '✓ Ready' : '✗ Missing';
-        document.getElementById('key-status').style.color = config.hasKey ? '#6ee7b7' : '#fca5a5';
-        document.getElementById('center-status').textContent = config.apiBase;
-        if (config.hasKey) await refreshModels();
-      } catch (e) {
-        document.getElementById('key-status').textContent = '✗ Server error';
-      }
-    }
-
-    async function refreshModels() {
-      const select = document.getElementById('model-select');
-      const list = document.getElementById('models-list');
-      select.innerHTML = '<option>Loading...</option>';
-      list.innerHTML = '<span style="color:#fcd34d;">Loading models...</span>';
-      try {
-        const resp = await fetch('/proxy/models');
+        const resp = await fetch('/api/models');
         const data = await resp.json();
         const models = data.data || [];
-        document.getElementById('model-count').textContent = models.length;
-        document.getElementById('model-count').style.color = '#6ee7b7';
-
-        if (!models.length) {
-          select.innerHTML = '<option value="">No models returned</option>';
-          list.innerHTML = '<span style="color:#fca5a5;">No models returned from API.</span>';
-          return;
+        const select = document.getElementById('model-select');
+        if (models.length) {
+          select.innerHTML = models.map(m =>
+            `<option value="${m.id}">${m.id}</option>`
+          ).join('');
+          document.getElementById('status-dot').classList.add('connected');
+          document.getElementById('model-hint').textContent =
+            `Using ${models[0].group || 'provider'} model`;
+        } else {
+          select.innerHTML = '<option value="">No models available</option>';
+          document.getElementById('status-dot').classList.add('error');
         }
-
-        select.innerHTML = models.map(m => `<option value="${m.id}">${m.id}</option>`).join('');
-        list.innerHTML = models.map(m =>
-          `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #2a2a3e;">
-            <span>${m.id}</span>
-            <span style="color:#6b7280;font-size:12px;">${m.group || ''}</span>
-          </div>`
-        ).join('');
-
-        updateCurlCommands(models[0]?.id);
       } catch (e) {
-        select.innerHTML = '<option value="">Failed to load</option>';
-        list.innerHTML = `<span style="color:#fca5a5;">Error: ${e.message}</span>`;
+        document.getElementById('model-select').innerHTML =
+          '<option value="">Failed to load models</option>';
+        document.getElementById('status-dot').classList.add('error');
       }
     }
 
-    function updateCurlCommands(modelId) {
-      const base = config.apiBase || 'http://localhost:3000/v1';
-      const key = 'prl_your_api_key_here';
-      document.getElementById('curl-models').textContent =
-        `curl ${base}/models \\\n  -H "Authorization: Bearer ${key}"`;
-      document.getElementById('curl-completion').textContent =
-        `curl -X POST ${base}/chat/completions \\\n  -H "Authorization: Bearer ${key}" \\\n  -H "Content-Type: application/json" \\\n  -d '{\n    "model": "${modelId || 'Porel Llama 4 Scout'}",\n    "messages": [{"role": "user", "content": "Hello!"}]\n  }'`;
+    function autoResize(el) {
+      el.style.height = 'auto';
+      el.style.height = Math.min(el.scrollHeight, 160) + 'px';
     }
 
-    function setPreset(name) {
-      const msgs = PRESETS[name];
-      if (msgs) document.getElementById('messages-input').value = JSON.stringify(msgs, null, 2);
+    function handleKey(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        send();
+      }
     }
 
-    async function sendCompletion() {
-      const btn = document.getElementById('send-btn');
-      const resultCard = document.getElementById('result-card');
-      const resultBox = document.getElementById('result-box');
+    function addMessage(role, content, meta) {
+      const welcome = document.getElementById('welcome');
+      if (welcome) welcome.remove();
+
+      const container = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = `message ${role}`;
+      div.textContent = content;
+      if (meta) {
+        const metaDiv = document.createElement('div');
+        metaDiv.className = 'message-meta';
+        metaDiv.textContent = meta;
+        div.appendChild(metaDiv);
+      }
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+      return div;
+    }
+
+    function addTypingIndicator() {
+      const container = document.getElementById('messages');
+      const div = document.createElement('div');
+      div.className = 'message assistant';
+      div.id = 'typing';
+      div.innerHTML =
+        '<span class="typing-dot">.</span>' +
+        '<span class="typing-dot">.</span>' +
+        '<span class="typing-dot">.</span>';
+      container.appendChild(div);
+      container.scrollTop = container.scrollHeight;
+      return div;
+    }
+
+    async function send() {
+      if (streaming) return;
+
+      const input = document.getElementById('input');
+      const text = input.value.trim();
+      if (!text) return;
 
       const model = document.getElementById('model-select').value;
-      let messages;
-      try {
-        messages = JSON.parse(document.getElementById('messages-input').value);
-      } catch (e) {
-        resultCard.style.display = 'block';
-        resultBox.innerHTML = '<span style="color:#fca5a5;">✗ Invalid JSON in messages field</span>';
+      if (!model) {
+        addMessage('error', 'No model selected. Please wait for models to load.');
         return;
       }
-      const max_tokens = parseInt(document.getElementById('max-tokens').value) || 200;
-      const temperature = parseFloat(document.getElementById('temperature').value) || 0.7;
 
-      if (!model) { resultCard.style.display = 'block'; resultBox.innerHTML = '<span style="color:#fca5a5;">✗ Select a model first</span>'; return; }
+      input.value = '';
+      autoResize(input);
 
-      btn.disabled = true;
-      btn.textContent = 'Sending...';
-      resultCard.style.display = 'block';
-      resultBox.innerHTML = '<span style="color:#fcd34d;">⏳ Waiting for response...</span>';
+      addMessage('user', text);
+      chatHistory.push({ role: 'user', content: text });
 
-      const start = performance.now();
+      streaming = true;
+      document.getElementById('send-btn').disabled = true;
+
+      const typingEl = addTypingIndicator();
+      const start = Date.now();
+
       try {
-        const resp = await fetch('/proxy/chat/completions', {
+        abortCtrl = new AbortController();
+        const resp = await fetch('/api/chat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ model, messages, max_tokens, temperature }),
+          body: JSON.stringify({ model, messages: chatHistory, stream: true }),
+          signal: abortCtrl.signal,
         });
-        const elapsed = ((performance.now() - start) / 1000).toFixed(2);
-        const data = await resp.json();
 
-        if (data.error) {
-          resultBox.innerHTML =
-            `<div class="meta">${resp.status} · ${elapsed}s</div>\n` +
-            `<span style="color:#fca5a5;">✗ ${data.error.message || JSON.stringify(data.error)}</span>`;
+        typingEl.remove();
+
+        if (!resp.ok) {
+          const err = await resp.json().catch(() => ({}));
+          const msg = err.error?.message || `Server error ${resp.status}`;
+          addMessage('error', msg);
           return;
         }
 
-        const content = data.choices?.[0]?.message?.content || '(empty response)';
-        const usage = data.usage || {};
-        resultBox.innerHTML =
-          `<div class="meta">${resp.status} · ${elapsed}s · ` +
-          `prompt: ${usage.prompt_tokens} · completion: ${usage.completion_tokens} · total: ${usage.total_tokens}` +
-          `</div>\n` +
-          `<div style="margin-top:8px;">${escapeHtml(content)}</div>\n` +
-          `<details style="margin-top:12px;"><summary style="cursor:pointer;font-size:11px;color:#6b7280;">Raw response</summary>` +
-          `<pre style="margin:8px 0 0;font-size:11px;">${escapeHtml(JSON.stringify(data, null, 2))}</pre></details>`;
+        const reader = resp.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let fullContent = '';
+
+        const assistantEl = addMessage('assistant', '');
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+
+          for (const line of lines) {
+            const trimmed = line.trim();
+            if (!trimmed.startsWith('data:')) continue;
+            const payload = trimmed.slice(5).trim();
+            if (payload === '[DONE]') continue;
+
+            try {
+              const chunk = JSON.parse(payload);
+              if (chunk.error) {
+                assistantEl.textContent = '';
+                assistantEl.className = 'message error';
+                assistantEl.textContent = chunk.error.message || chunk.error;
+                break;
+              }
+              const token = chunk.choices?.[0]?.delta?.content;
+              if (token) {
+                fullContent += token;
+                assistantEl.textContent = fullContent;
+                document.getElementById('messages').scrollTop =
+                  document.getElementById('messages').scrollHeight;
+              }
+            } catch {}
+          }
+        }
+
+        if (fullContent) {
+          chatHistory.push({ role: 'assistant', content: fullContent });
+          const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+          const meta = document.createElement('div');
+          meta.className = 'message-meta';
+          meta.textContent = `${elapsed}s`;
+          assistantEl.appendChild(meta);
+        }
       } catch (e) {
-        resultBox.innerHTML = `<span style="color:#fca5a5;">✗ ${e.message}</span>`;
+        typingEl.remove();
+        if (e.name !== 'AbortError') {
+          addMessage('error', e.message);
+        }
       } finally {
-        btn.disabled = false;
-        btn.textContent = 'Send Request';
+        streaming = false;
+        abortCtrl = null;
+        document.getElementById('send-btn').disabled = false;
+        document.getElementById('input').focus();
       }
     }
 
-    function switchTab(name, el) {
-      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-      el.classList.add('active');
-      document.getElementById(`tab-${name}`).classList.add('active');
-    }
-
-    function escapeHtml(str) {
-      const div = document.createElement('div');
-      div.textContent = str;
-      return div.innerHTML;
+    function clearChat() {
+      chatHistory = [];
+      const container = document.getElementById('messages');
+      container.innerHTML = `
+        <div class="welcome" id="welcome">
+          <h2>How can I help you?</h2>
+          <p>Start a conversation below.</p>
+          <div class="hint" id="model-hint"></div>
+        </div>`;
     }
 
     init();
